@@ -1,1 +1,1 @@
-add_executable(bomberman main.cpp)
+add_executable(bomberman main.cpp player.cpp)
