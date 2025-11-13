@@ -1,5 +1,7 @@
 #include "texture_manager.hpp"
 #include "SDL3/SDL_log.h"
+#include "SDL3/SDL_render.h"
+#include "SDL3/SDL_surface.h"
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_filesystem.h>
 #include <string_view>
@@ -29,6 +31,8 @@ bool TextureManager::load(SDL_Renderer* renderer, std::string_view id, std::stri
         return false;
     }
 
+    SDL_SetTextureScaleMode(textures[id], SDL_SCALEMODE_PIXELART);
+
     SDL_DestroySurface(surface); 
     return true;
 }
@@ -38,6 +42,5 @@ SDL_Texture* TextureManager::get(std::string_view id) {
     if (it != textures.end()){
         return it->second;
     }
-    SDL_LogWarn(0, "Could not find texture %s", id.data());
     return nullptr;
 }

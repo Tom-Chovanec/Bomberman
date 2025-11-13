@@ -37,13 +37,12 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
         return SDL_APP_FAILURE;
     }
 
-
     as->window.reset(win);
     as->renderer.reset(ren);
     as->player = std::make_unique<Player>();
     as->tm = std::make_unique<TextureManager>();
 
-    as->tm->load(as->renderer.get(), "player", "sample.png");
+    as->tm->load(as->renderer.get(), "player", "player.png");
 
     return SDL_APP_CONTINUE;
 }
@@ -56,10 +55,9 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
             return SDL_APP_SUCCESS;
         }
         case (SDL_EVENT_KEY_DOWN): {
-            switch (event->key.key){
-                case SDLK_W:
-                    SDL_LogInfo(0, "%i", as->player->getHealth());
-            }
+            SDL_Scancode scancode = event->key.scancode;
+            as->player->handleKeyEvent(scancode);
+            break;
         }
     }
     return SDL_APP_CONTINUE;
@@ -71,6 +69,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     const char *message = "Hello World!";
     int w = 0, h = 0;
     SDL_GetRenderOutputSize(as->renderer.get(), &w, &h);
+    SDL_SetRenderScale(as->renderer.get(), 2, 2);
 
     auto playerRect = as->player->getRect();
     SDL_RenderTexture(as->renderer.get(), as->tm->get("player"), nullptr, &playerRect);

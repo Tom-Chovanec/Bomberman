@@ -1,4 +1,5 @@
 #include "player.hpp"
+#include "SDL3/SDL_scancode.h"
 #include <SDL3/SDL_rect.h>
 
 int Player::getHealth() {
@@ -17,6 +18,25 @@ void Player::setRect(SDL_FRect rect) {
     this->rect = rect;
 }
 
-Player::~Player() {
-    SDL_LogInfo(0, "Player destructed");
+void Player::update() {
+
+}
+
+void Player::handleKeyEvent(SDL_Scancode event) {
+    switch (event) {
+        case SDL_SCANCODE_W:
+            this->rect.y--;
+            break;
+        case SDL_SCANCODE_S:
+            this->rect.y++;
+            break;
+        case SDL_SCANCODE_A:
+            this->rect.x--;
+            break;
+        case SDL_SCANCODE_D:
+            this->rect.x++;
+            break;
+        default:
+            break;
+    }
 }
