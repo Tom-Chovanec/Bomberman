@@ -11,5 +11,7 @@ add_subdirectory(vendored/SDL EXCLUDE_FROM_ALL)
 add_subdirectory(vendored/SDL_image EXCLUDE_FROM_ALL)
 add_subdirectory(src)
 
+file(COPY assets DESTINATION ${CMAKE_BINARY_DIR})
+
 target_link_libraries(bomberman PRIVATE SDL3::SDL3)
 target_link_libraries(bomberman PRIVATE SDL3_image::SDL3_image)
