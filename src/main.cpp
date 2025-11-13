@@ -1,9 +1,11 @@
+#include "SDL3/SDL_render.h"
 #include <memory>
 #define SDL_MAIN_USE_CALLBACKS 1
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 
 #include "player.hpp"
+#include "texture_manager.hpp"
 
 struct SDL_Window_Deleter {
     void operator()(SDL_Window* w) const { SDL_DestroyWindow(w); }
@@ -16,6 +18,7 @@ struct AppState {
     std::unique_ptr<SDL_Window, SDL_Window_Deleter> window;
     std::unique_ptr<SDL_Renderer, SDL_Renderer_Deleter> renderer;
     std::unique_ptr<Player> player;
+    std::unique_ptr<TextureManager> tm;
 };
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
@@ -29,14 +32,18 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     SDL_Window* win = nullptr;
     SDL_Renderer* ren = nullptr;
 
-    if (!SDL_CreateWindowAndRenderer("Hello World", 800, 600, SDL_WINDOW_RESIZABLE, &win, &ren)) {
+    if (!SDL_CreateWindowAndRenderer("Bomberman", 800, 600, SDL_WINDOW_RESIZABLE, &win, &ren)) {
         SDL_Log("Couldn't create window and renderer: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 
+
     as->window.reset(win);
     as->renderer.reset(ren);
     as->player = std::make_unique<Player>();
+    as->tm = std::make_unique<TextureManager>();
+
+    as->tm->load(as->renderer.get(), "player", "sample.png");
 
     return SDL_APP_CONTINUE;
 }
@@ -63,18 +70,11 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     AppState* as = static_cast<AppState*>(appstate);
     const char *message = "Hello World!";
     int w = 0, h = 0;
-    float x, y;
-    const float scale = 4.0f;
-
     SDL_GetRenderOutputSize(as->renderer.get(), &w, &h);
-    SDL_SetRenderScale(as->renderer.get(), scale, scale);
-    x = ((w / scale) - SDL_DEBUG_TEXT_FONT_CHARACTER_SIZE * SDL_strlen(message)) / 2;
-    y = ((h / scale) - SDL_DEBUG_TEXT_FONT_CHARACTER_SIZE) / 2;
 
-    SDL_SetRenderDrawColor(as->renderer.get(), 0, 0, 0, 255);
-    SDL_RenderClear(as->renderer.get());
-    SDL_SetRenderDrawColor(as->renderer.get(), 255, 255, 255, 255);
-    SDL_RenderDebugText(as->renderer.get(), x, y, message);
+    auto playerRect = as->player->getRect();
+    SDL_RenderTexture(as->renderer.get(), as->tm->get("player"), nullptr, &playerRect);
+
     SDL_RenderPresent(as->renderer.get());
 
     return SDL_APP_CONTINUE;

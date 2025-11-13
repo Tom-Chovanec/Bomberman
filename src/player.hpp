@@ -1,10 +1,11 @@
+#pragma once
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_rect.h>
 
 class Player {
 private:
     int health = 3;
-    SDL_Point position = {0, 0};
+    SDL_FRect rect = {0, 0, 100, 100};
 
 public:
     ~Player();
@@ -12,6 +13,6 @@ public:
     int getHealth();
     void setHealth(int health);
 
-    SDL_Point getPosition();
-    void setPosition(SDL_Point position);
+    SDL_FRect getRect();
+    void setRect(SDL_FRect rect);
 };

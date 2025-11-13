@@ -9,12 +9,12 @@ void Player::setHealth(int health) {
     this->health = health;
 }
 
-SDL_Point Player::getPosition() {
-    return this->position;
+SDL_FRect Player::getRect() {
+    return this->rect;
 }
 
-void Player::setPosition(SDL_Point position) {
-    this->position = position;
+void Player::setRect(SDL_FRect rect) {
+    this->rect = rect;
 }
 
 Player::~Player() {
