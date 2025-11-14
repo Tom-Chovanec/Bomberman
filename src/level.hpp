@@ -16,12 +16,16 @@ struct Level {
 class LevelManager {
 private:
     std::unordered_map<std::string_view, Level> levels;
-    Level activeLevel;
+    std::string activeLevel = "";
 
 public:
     ~LevelManager();
 
+    void setActiveLevel(std::string_view name);
+    std::string_view getActiveLevel();
+    void clearActiveLevel();
     void addLevel(std::string_view name, Level level);
+    void loadLevel(std::string_view name, std::string_view levelPath);
 
 
     void renderLevel(SDL_Renderer* renderer, TextureManager* tm, std::string_view levelName);
