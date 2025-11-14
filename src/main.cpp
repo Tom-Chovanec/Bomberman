@@ -1,4 +1,7 @@
 #include "SDL3/SDL_render.h"
+#include "SDL3/SDL_stdinc.h"
+#include "SDL3/SDL_timer.h"
+#include "level.hpp"
 #include <memory>
 #define SDL_MAIN_USE_CALLBACKS 1
 #include <SDL3/SDL.h>
@@ -19,6 +22,8 @@ struct AppState {
     std::unique_ptr<SDL_Renderer, SDL_Renderer_Deleter> renderer;
     std::unique_ptr<Player> player;
     std::unique_ptr<TextureManager> tm;
+    std::unique_ptr<LevelManager> lm;
+    Uint64 prevTicks;
 };
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
@@ -41,8 +46,19 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     as->renderer.reset(ren);
     as->player = std::make_unique<Player>();
     as->tm = std::make_unique<TextureManager>();
+    as->lm = std::make_unique<LevelManager>();
+    as->prevTicks = SDL_GetTicks();
 
     as->tm->load(as->renderer.get(), "player", "player.png");
+    as->tm->load(as->renderer.get(), "ground", "ground.png");
+    as->tm->load(as->renderer.get(), "wall", "wall.png");
+
+    Level testLevel = {
+        .width = 16,
+        .height = 12,
+        .layout = "XXXXXXXXXXXXXXXXX00000000000000XX00000000000000XX00000000000000XX00000000000000XX00000000000000XX00000000000000XX00000000000000XX00000000000000XX00000000000000XX00000000000000XXXXXXXXXXXXXXXXX"
+    };
+    as->lm->addLevel("text", testLevel);
 
     return SDL_APP_CONTINUE;
 }
@@ -54,22 +70,25 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
         case (SDL_EVENT_QUIT): {
             return SDL_APP_SUCCESS;
         }
-        case (SDL_EVENT_KEY_DOWN): {
-            SDL_Scancode scancode = event->key.scancode;
-            as->player->handleKeyEvent(scancode);
-            break;
-        }
     }
+    as->player->handleEvent(event);
     return SDL_APP_CONTINUE;
 }
 
 SDL_AppResult SDL_AppIterate(void *appstate)
 {
     AppState* as = static_cast<AppState*>(appstate);
-    const char *message = "Hello World!";
-    int w = 0, h = 0;
-    SDL_GetRenderOutputSize(as->renderer.get(), &w, &h);
+    Uint64 ticks = SDL_GetTicks();
+    double dt = (ticks - as->prevTicks) / 1000.0;
+    as->prevTicks = ticks;
+
+    as->player->update(dt);
+
     SDL_SetRenderScale(as->renderer.get(), 2, 2);
+
+    SDL_SetRenderDrawColor(as->renderer.get(), 18, 18, 18, 255);
+    SDL_RenderClear(as->renderer.get());
+    as->lm->renderLevel(as->renderer.get(), as->tm.get(), "text");
 
     auto playerRect = as->player->getRect();
     SDL_RenderTexture(as->renderer.get(), as->tm->get("player"), nullptr, &playerRect);
