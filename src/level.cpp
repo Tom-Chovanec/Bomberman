@@ -1,6 +1,7 @@
 #include "level.hpp"
 #include "SDL3/SDL_iostream.h"
 #include "SDL3/SDL_log.h"
+#include "SDL3/SDL_rect.h"
 #include <format>
 #include <algorithm>
 
@@ -8,8 +9,7 @@ void LevelManager::addLevel(std::string_view name, Level level) {
     levels[name] = level;
 }
 
-void LevelManager::loadLevel(std::string_view name, std::string_view levelPath) {
-    std::string fullPath = std::format("levels/{}", levelPath);
+void LevelManager::loadLevel(std::string_view name, std::string_view levelPath) { std::string fullPath = std::format("levels/{}", levelPath);
     std::string data = static_cast<char*>(SDL_LoadFile(fullPath.data(), nullptr));
     int width = data.find('\n');
     int height = std::ranges::count(data, '\n');
@@ -66,4 +66,36 @@ void LevelManager::renderLevel(SDL_Renderer* renderer, TextureManager* tm, std::
             yIdx++;
         }
     }
+}
+
+bool LevelManager::checkCollision(SDL_FRect& rect) {
+    if (activeLevel == "") return false;
+
+    Level level = levels[activeLevel];
+    if (level.width * level.height != level.layout.length()) {
+        SDL_LogWarn(0, "Unable to render level, improper size");
+        return false;
+    }
+
+    int xIdx = 0;
+    int yIdx = 0;
+    for (char tile : level.layout) {
+        switch (tile) {
+        case 'X': {
+            SDL_FRect tileRect = {
+                .x = static_cast<float>(400.0 / level.width) * xIdx,
+                .y = static_cast<float>(300.0 / level.height) * yIdx,
+                .w = static_cast<float>(400.0 / level.width),
+                .h = static_cast<float>(300.0 / level.height),
+            };
+            if (SDL_HasRectIntersectionFloat(&tileRect, &rect)) return true;
+            break;
+        }}
+        xIdx++;
+        if (xIdx ==level.width) {
+            xIdx = 0;
+            yIdx++;
+        }
+    }
+    return false;
 }

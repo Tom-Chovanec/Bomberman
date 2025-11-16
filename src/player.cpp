@@ -4,35 +4,52 @@
 #include <SDL3/SDL_rect.h>
 
 int Player::getHealth() {
-    return this->health;
+    return health;
 }
 
 void Player::setHealth(int health) {
     this->health = health;
 }
 
-SDL_FRect Player::getRect() {
-    return this->rect;
+SDL_FRect& Player::getRect() {
+    return rect;
+}
+
+SDL_FRect& Player::getSpriteRect() {
+    return spriteRect;
 }
 
 void Player::setRect(SDL_FRect rect) {
     this->rect = rect;
 }
 
-void Player::update(double dt) {
+void Player::updateSpriteRect() {
+    spriteRect.x = rect.x - 5;
+    spriteRect.y = rect.y - 21;
+}
+
+void Player::update(double dt, LevelManager& lm) {
     if (direction.up) {
         rect.y -= speed*dt;
+        if (lm.checkCollision(rect))
+            rect.y += speed*dt;
     }
     if (direction.down) {
         rect.y += speed*dt;
+        if (lm.checkCollision(rect))
+            rect.y -= speed*dt;
     }
     if (direction.left) {
         rect.x -= speed*dt;
+        if (lm.checkCollision(rect))
+            rect.x += speed*dt;
     }
     if (direction.right) {
         rect.x += speed*dt;
+        if (lm.checkCollision(rect))
+            rect.x -= speed*dt;
     }
-
+    updateSpriteRect();
 }
 
 void Player::handleEvent(SDL_Event* event) {

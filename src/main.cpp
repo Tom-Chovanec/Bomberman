@@ -99,7 +99,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     double dt = (ticks - as->prevTicks) / 1000.0;
     as->prevTicks = ticks;
 
-    as->player->update(dt);
+    as->player->update(dt, *as->lm);
 
     SDL_SetRenderScale(as->renderer.get(), 2, 2);
 
@@ -108,8 +108,10 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     std::string_view activeLevelName = as->lm->getActiveLevel();
     as->lm->renderLevel(as->renderer.get(), as->tm.get(), activeLevelName);
 
-    auto playerRect = as->player->getRect();
-    SDL_RenderTexture(as->renderer.get(), as->tm->get("player"), nullptr, &playerRect);
+    SDL_RenderTexture(as->renderer.get(), as->tm->get("player"), nullptr, &as->player->getSpriteRect());
+
+    SDL_SetRenderDrawColor(as->renderer.get(), 255, 0, 255, 255);
+    SDL_RenderFillRect(as->renderer.get(), &as->player->getRect());
 
     SDL_RenderPresent(as->renderer.get());
 
