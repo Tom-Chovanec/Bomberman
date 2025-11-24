@@ -1,7 +1,10 @@
 #pragma once
 
 #include "SDL3/SDL_render.h"
+#include "bomb.hpp"
 #include "texture_manager.hpp"
+#include <array>
+#include <chrono>
 #include <memory>
 #include <string_view>
 #include <string>
@@ -9,6 +12,12 @@
 #include <random>
 #include <vector>
 
+class Player;
+
+struct Flame {
+    SDL_FRect rect;
+    std::chrono::milliseconds ttl;
+};
 
 struct Level {
     int width;
@@ -26,6 +35,9 @@ private:
     std::mt19937 gen;
     std::uniform_int_distribution<> distrib;
 
+    std::vector<std::unique_ptr<Bomb>> bombs;
+    std::vector<Flame> flames;
+    std::array<int, 4> explodedBombCount = {0, 0, 0, 0};
 public:
     LevelManager();
     ~LevelManager();
@@ -38,9 +50,11 @@ public:
     Level getPupulatedLevel(std::string_view levelName);
     bool checkCollision(SDL_FRect& rect);
 
-    void placeBomb(const SDL_FRect& rect);
+    bool placeBomb(int ownerId, const SDL_FRect& rect);
 
-    void update();
+    void update(std::chrono::milliseconds dt, std::array<Player*, 2> players);
+
+    int bombsExploded(int ownerId);
 
     void renderLevel(SDL_Renderer* renderer, TextureManager* tm) const;
 

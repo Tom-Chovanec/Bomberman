@@ -2,9 +2,12 @@
 #include "SDL3/SDL_events.h"
 #include "SDL3/SDL_scancode.h"
 #include <SDL3/SDL_rect.h>
+#include "level.hpp"
+#include <chrono>
 
-Player::Player(const std::array<SDL_Scancode, 5>& scancodes) {
-    this->scancodes = scancodes;
+Player::Player(int id, const std::array<SDL_Scancode, 5>& scancodes) 
+    : id(id),
+      scancodes(scancodes) {
 }
 
 void Player::summon(const SDL_FPoint& pos) {
@@ -40,7 +43,7 @@ void Player::updateSpriteRect() {
     spriteRect.y = rect.y - 21;
 }
 
-void Player::update(double dt, LevelManager& lm) {
+void Player::update(std::chrono::milliseconds dt, LevelManager& lm) {
     if (!alive) return;
 
     if (health == 0) {
@@ -48,36 +51,42 @@ void Player::update(double dt, LevelManager& lm) {
         return;
     }
 
+    bombs -= lm.bombsExploded(id);
+
+    double t = dt.count() / 1000.0;
+
     if (action.up) {
-        rect.y -= speed*dt;
+        rect.y -= speed * t;
         if (lm.checkCollision(rect)) {
-            rect.y += speed*dt;
+            rect.y += speed*t;
         }
     }
 
     if (action.down) {
-        rect.y += speed*dt;
+        rect.y += speed*t;
         if (lm.checkCollision(rect)) {
-            rect.y -= speed*dt;
+            rect.y -= speed*t;
         }
     }
 
     if (action.left) {
-        rect.x -= speed*dt;
+        rect.x -= speed*t;
         if (lm.checkCollision(rect)) {
-            rect.x += speed*dt;
+            rect.x += speed*t;
         }
     }
 
     if (action.right) {
-        rect.x += speed*dt;
+        rect.x += speed*t;
         if (lm.checkCollision(rect)) {
-            rect.x -= speed*dt;
+            rect.x -= speed*t;
         }
     }
 
-    if (action.bomb) {
-        lm.placeBomb(rect);
+    if (action.bomb && maxBombs > bombs) {
+        if (lm.placeBomb(id, rect)) {
+            bombs++;
+        }
     }
 
     updateSpriteRect();

@@ -5,6 +5,7 @@
 #include "SDL3/SDL_timer.h"
 #include "level.hpp"
 #include <array>
+#include <chrono>
 #include <memory>
 #define SDL_MAIN_USE_CALLBACKS 1
 #include <SDL3/SDL.h>
@@ -23,7 +24,7 @@ struct SDL_Renderer_Deleter {
 struct AppState {
     std::unique_ptr<SDL_Window, SDL_Window_Deleter> window;
     std::unique_ptr<SDL_Renderer, SDL_Renderer_Deleter> renderer;
-    std::unique_ptr<Player> player;
+    std::array<std::unique_ptr<Player>, 2> players;
     std::unique_ptr<TextureManager> tm;
     std::unique_ptr<LevelManager> lm;
     Uint64 prevTicks;
@@ -47,13 +48,26 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 
     as->window.reset(win);
     as->renderer.reset(ren);
-    as->player = std::make_unique<Player>(std::array<SDL_Scancode, 5>{
-        SDL_SCANCODE_W,
-        SDL_SCANCODE_S,
-        SDL_SCANCODE_A,
-        SDL_SCANCODE_D,
-        SDL_SCANCODE_E,
-    });
+    as->players[0] = std::make_unique<Player>(
+        0,
+        std::array<SDL_Scancode, 5>{
+            SDL_SCANCODE_W,
+            SDL_SCANCODE_S,
+            SDL_SCANCODE_A,
+            SDL_SCANCODE_D,
+            SDL_SCANCODE_E,
+        }
+    );
+    as->players[1] = std::make_unique<Player>(
+        1,
+        std::array<SDL_Scancode, 5>{
+            SDL_SCANCODE_UP,
+            SDL_SCANCODE_DOWN,
+            SDL_SCANCODE_LEFT,
+            SDL_SCANCODE_RIGHT,
+            SDL_SCANCODE_SLASH,
+        }
+    );
     as->tm = std::make_unique<TextureManager>();
     as->lm = std::make_unique<LevelManager>();
     as->prevTicks = SDL_GetTicks();
@@ -63,6 +77,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     as->tm->load(as->renderer.get(), "wall", "wall.png");
     as->tm->load(as->renderer.get(), "crate", "crate.png");
     as->tm->load(as->renderer.get(), "bomb", "bomb.png");
+    as->tm->load(as->renderer.get(), "flame", "flame.png");
 
     as->lm->loadLevel("level1", "level1.l");
 
@@ -81,12 +96,15 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
                 case (SDL_SCANCODE_J): {
                     as->lm->setActiveLevel("level1");
                     SDL_FRect rect = as->lm->getActiveLevel().spawnZones[0];
-                    as->player->summon(SDL_FPoint{rect.x + 2, rect.y + 2});
+                    as->players[0]->summon(SDL_FPoint{rect.x + 2, rect.y + 2});
+                    rect = as->lm->getActiveLevel().spawnZones[1];
+                    as->players[1]->summon(SDL_FPoint{rect.x + 2, rect.y + 2});
                     break;
                 }
                 case (SDL_SCANCODE_O):
                     as->lm->clearActiveLevel();
-                    as->player->setHealth(0);
+                    as->players[0]->setHealth(0);
+                    as->players[1]->setHealth(0);
                     break;
                 default:
                     break;
@@ -94,7 +112,9 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
             break;
         }
     }
-    as->player->handleEvent(event);
+    for (auto& player : as->players) {
+        player->handleEvent(event);
+    }
     return SDL_APP_CONTINUE;
 }
 
@@ -102,10 +122,14 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 {
     AppState* as = static_cast<AppState*>(appstate);
     Uint64 ticks = SDL_GetTicks();
-    double dt = (ticks - as->prevTicks) / 1000.0;
+    std::chrono::milliseconds dt(ticks - as->prevTicks);
     as->prevTicks = ticks;
 
-    as->player->update(dt, *as->lm);
+    as->lm->update(dt, { as->players[0].get(), as->players[1].get() });
+
+    for (auto& player : as->players) {
+        player->update(dt, *as->lm);
+    }
 
     SDL_SetRenderScale(as->renderer.get(), 2, 2);
 
@@ -113,14 +137,16 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     SDL_RenderClear(as->renderer.get());
     as->lm->renderLevel(as->renderer.get(), as->tm.get());
 
-    if (as->player->isAlive()) {
-        SDL_RenderTexture(as->renderer.get(), as->tm->get("player"), nullptr, &as->player->getSpriteRect());
+    for (auto& player : as->players) {
+        if (player->isAlive()) {
+            SDL_RenderTexture(as->renderer.get(), as->tm->get("player"), nullptr, &player->getSpriteRect());
+        }
     }
 
-    if (as->player->isAlive()) {
-        SDL_SetRenderDrawColor(as->renderer.get(), 255, 0, 255, 255);
-        SDL_RenderFillRect(as->renderer.get(), &as->player->getRect());
-    }
+    // if (as->player->isAlive()) {
+    //     SDL_SetRenderDrawColor(as->renderer.get(), 255, 0, 255, 255);
+    //     SDL_RenderFillRect(as->renderer.get(), &as->player->getRect());
+    // }
 
     SDL_RenderPresent(as->renderer.get());
 

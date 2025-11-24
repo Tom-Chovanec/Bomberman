@@ -2,6 +2,10 @@
 #include "SDL3/SDL_iostream.h"
 #include "SDL3/SDL_log.h"
 #include "SDL3/SDL_rect.h"
+#include "bomb.hpp"
+#include "player.hpp"
+#include <array>
+#include <chrono>
 #include <format>
 #include <algorithm>
 #include <memory>
@@ -110,9 +114,6 @@ void LevelManager::renderLevel(SDL_Renderer* renderer, TextureManager* tm) const
         case 'C':
             SDL_RenderTexture(renderer, tm->get("crate"), nullptr, &tileRect);
             break;
-        case 'B':
-            SDL_RenderTexture(renderer, tm->get("bomb"), nullptr, &tileRect);
-            break;
         }
         xIdx++;
         if (xIdx ==activeLevel->width) {
@@ -120,12 +121,20 @@ void LevelManager::renderLevel(SDL_Renderer* renderer, TextureManager* tm) const
             yIdx++;
         }
     }
+
+    for (auto& bomb : bombs) {
+        SDL_RenderTexture(renderer, tm->get("bomb"), nullptr, &bomb->getRect());
+    }
+
+    for (auto& flame : flames) {
+        SDL_RenderTexture(renderer, tm->get("flame"), nullptr, &flame.rect);
+    }
 }
 
-void LevelManager::placeBomb(const SDL_FRect& rect) {
+bool LevelManager::placeBomb(int ownerId, const SDL_FRect& rect) {
     float maxOverlapArea = 0.0f;
-    int targetX = -1;
-    int targetY = -1;
+    float targetX = -1;
+    float targetY = -1;
 
     float tileW = 400.0f / activeLevel->width;
     float tileH = 300.0f / activeLevel->height;
@@ -145,22 +154,102 @@ void LevelManager::placeBomb(const SDL_FRect& rect) {
 
                 if (area > maxOverlapArea) {
                     maxOverlapArea = area;
-                    targetX = x;
-                    targetY = y;
+                    targetX = tileRect.x;
+                    targetY = tileRect.y;
                 }
             }
         }
     }
 
-    if (targetX != -1 && targetY != -1) {
-        int tileIndex = targetY * activeLevel->width + targetX;
+    bool bombExists = std::any_of(
+        bombs.begin(),
+        bombs.end(),
+        [&](const std::unique_ptr<Bomb>& bomb) {
+            const SDL_FRect& bRect = bomb->getRect();
+            return fabs(bRect.x - targetX) < 0.001f &&
+                   fabs(bRect.y - targetY) < 0.001f;
+        }
+    );
 
-        activeLevel->layout[tileIndex] = 'B'; 
+    if (targetX != -1 && targetY != -1 && !bombExists) {
+        bombs.emplace_back(std::make_unique<Bomb>(ownerId, SDL_FRect{targetX, targetY, tileW, tileH}, 5, std::chrono::milliseconds(1000)));
+        return true;
     }
+    return false;
 }
 
-void LevelManager::update() {
-    
+void LevelManager::update(std::chrono::milliseconds dt, std::array<Player*, 2> players) {
+    for (auto it = flames.begin(); it != flames.end();) {
+        it->ttl -= dt;
+
+        if (it->ttl.count() > 0) {
+             for (Player* p : players) {
+                if (p->isAlive() && SDL_HasRectIntersectionFloat(&it->rect, &p->getRect())) {
+                    p->setHealth(p->getHealth() - 1);
+                }
+            }
+        }
+
+        if (it->ttl.count() <= 0) {
+            it = flames.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
+    for (auto it = bombs.begin(); it != bombs.end();) {
+        auto& bomb = *it;
+        bomb->update(dt);
+
+        if (bomb->isExploded()) {
+            explodedBombCount[bomb->getOwnerId()]++;
+
+            SDL_FRect bombRect = bomb->getRect();
+            int range = bomb->getExplosionRange();
+            float tileW = 400.0f / activeLevel->width;
+            float tileH = 300.0f / activeLevel->height;
+
+            int startX = static_cast<int>(bombRect.x / tileW);
+            int startY = static_cast<int>(bombRect.y / tileH);
+
+            flames.push_back({bombRect, std::chrono::milliseconds(200)});
+
+            int dirs[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+
+            for (auto& dir : dirs) {
+                for (int i = 1; i <= range; ++i) {
+                    int cx = startX + (dir[0] * i);
+                    int cy = startY + (dir[1] * i);
+
+                    if (cx < 0 || cx >= activeLevel->width || cy < 0 || cy >= activeLevel->height)
+                        break;
+
+                    int idx = cy * activeLevel->width + cx;
+                    char& tile = activeLevel->layout[idx];
+
+                    SDL_FRect flameRect = {
+                        static_cast<float>(cx) * tileW,
+                        static_cast<float>(cy) * tileH,
+                        tileW,
+                        tileH
+                    };
+
+                    if (tile == 'X') {
+                        break;
+                    } else if (tile == 'C') {
+                        tile = '0';
+                        flames.push_back({flameRect, std::chrono::milliseconds(200)});
+                        break;
+                    } else {
+                        flames.push_back({flameRect, std::chrono::milliseconds(200)});
+                    }
+                }
+            }
+            it = bombs.erase(it);
+        } else {
+            ++it;
+        }
+    }
 }
 
 bool LevelManager::checkCollision(SDL_FRect& rect) {
@@ -194,4 +283,10 @@ bool LevelManager::checkCollision(SDL_FRect& rect) {
         }
     }
     return false;
+}
+
+int LevelManager::bombsExploded(int ownerId) {
+    int tmp =explodedBombCount[ownerId];
+    explodedBombCount[ownerId] = 0;
+    return tmp;
 }
