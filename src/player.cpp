@@ -3,6 +3,18 @@
 #include "SDL3/SDL_scancode.h"
 #include <SDL3/SDL_rect.h>
 
+Player::Player(const std::array<SDL_Scancode, 5>& scancodes) {
+    this->scancodes = scancodes;
+}
+
+void Player::summon(const SDL_FPoint& pos) {
+    health = 3;
+    alive = true;
+    rect.x = pos.x;
+    rect.y = pos.y;
+}
+
+
 int Player::getHealth() {
     return health;
 }
@@ -29,63 +41,76 @@ void Player::updateSpriteRect() {
 }
 
 void Player::update(double dt, LevelManager& lm) {
-    if (direction.up) {
+    if (!alive) return;
+
+    if (health == 0) {
+        alive = false;
+        return;
+    }
+
+    if (action.up) {
         rect.y -= speed*dt;
-        if (lm.checkCollision(rect))
+        if (lm.checkCollision(rect)) {
             rect.y += speed*dt;
+        }
     }
-    if (direction.down) {
+
+    if (action.down) {
         rect.y += speed*dt;
-        if (lm.checkCollision(rect))
+        if (lm.checkCollision(rect)) {
             rect.y -= speed*dt;
+        }
     }
-    if (direction.left) {
+
+    if (action.left) {
         rect.x -= speed*dt;
-        if (lm.checkCollision(rect))
+        if (lm.checkCollision(rect)) {
             rect.x += speed*dt;
+        }
     }
-    if (direction.right) {
+
+    if (action.right) {
         rect.x += speed*dt;
-        if (lm.checkCollision(rect))
+        if (lm.checkCollision(rect)) {
             rect.x -= speed*dt;
+        }
     }
+
+    if (action.bomb) {
+        lm.placeBomb(rect);
+    }
+
     updateSpriteRect();
 }
 
 void Player::handleEvent(SDL_Event* event) {
     if (event->type == SDL_EVENT_KEY_DOWN) {
-        switch (event->key.scancode) {
-            case SDL_SCANCODE_W:
-                this->direction.up = true;
-                break;
-            case SDL_SCANCODE_S:
-                this->direction.down = true;
-                break;
-            case SDL_SCANCODE_A:
-                this->direction.left = true;
-                break;
-            case SDL_SCANCODE_D:
-                this->direction.right = true;
-                break;
-            default:
-                break;
-        }
+        SDL_Scancode scancode = event->key.scancode;
+        if (scancode == scancodes[0])
+            action.up = true;
+        else if (scancode == scancodes[1])
+            action.down = true;
+        else if (scancode == scancodes[2])
+            action.left = true;
+        else if (scancode == scancodes[3])
+            action.right = true;
+        else if (scancode == scancodes[4])
+            action.bomb = true;
     } else if (event->type == SDL_EVENT_KEY_UP) {
-        switch (event->key.scancode) {
-            case SDL_SCANCODE_W:
-                this->direction.up = false;
-                break;
-            case SDL_SCANCODE_S:
-                this->direction.down = false;
-                break;
-            case SDL_SCANCODE_A:
-                this->direction.left = false;
-                break;
-            case SDL_SCANCODE_D:
-                this->direction.right = false;
-                break;
-            default:
-                break;
-        }
+        SDL_Scancode scancode = event->key.scancode;
+        if (scancode == scancodes[0])
+            action.up = false;
+        else if (scancode == scancodes[1])
+            action.down = false;
+        else if (scancode == scancodes[2])
+            action.left = false;
+        else if (scancode == scancodes[3])
+            action.right = false;
+        else if (scancode == scancodes[4])
+            action.bomb = false;
     }
+}
+
+bool Player::isAlive() {
+    return alive;
 }
