@@ -1,5 +1,4 @@
 #include "bomb.hpp"
-#include <iostream>
 
 Bomb::Bomb(int ownerId, const SDL_FRect& rect, int explosionRange, std::chrono::milliseconds ttl)
     : ownerId(ownerId),
@@ -20,8 +19,6 @@ void Bomb::update(std::chrono::milliseconds dt) {
 }
 
 void Bomb::explode() {
-    std::cout << "BOOM! Exploded with range: " << explosionRange << std::endl;
-
     exploded = true;
 }
 

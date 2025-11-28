@@ -39,16 +39,37 @@ void Player::setRect(SDL_FRect rect) {
 }
 
 void Player::updateSpriteRect() {
-    spriteRect.x = rect.x - 5;
-    spriteRect.y = rect.y - 21;
+    spriteRect.x = rect.x - 8;
+    spriteRect.y = rect.y - 24;
 }
 
 void Player::update(std::chrono::milliseconds dt, LevelManager& lm) {
     if (!alive) return;
 
-    if (health == 0) {
+    if (health <= 0) {
         alive = false;
         return;
+    }
+
+    int speed = baseSpeed;
+    int maxBombs = baseMaxBombs;
+    int range = baseRange;
+
+    for (const auto& p : powerups) {
+        switch (p.getType()) {
+            case PowerupType::FIRE_UP: {
+                range++;
+                break;
+            }
+            case PowerupType::BOMB_UP: {
+                maxBombs++;
+                break;
+            }
+            case PowerupType::SKATE: {
+                speed *= 1.15;
+                break;
+            }
+        }
     }
 
     bombs -= lm.bombsExploded(id);
@@ -84,7 +105,7 @@ void Player::update(std::chrono::milliseconds dt, LevelManager& lm) {
     }
 
     if (action.bomb && maxBombs > bombs) {
-        if (lm.placeBomb(id, rect)) {
+        if (lm.placeBomb(id, rect, range)) {
             bombs++;
         }
     }
@@ -122,4 +143,12 @@ void Player::handleEvent(SDL_Event* event) {
 
 bool Player::isAlive() {
     return alive;
+}
+
+void Player::addPowerup(Powerup& powerup) {
+    powerups.push_back(powerup);
+}
+
+void Player::reset() {
+    powerups.clear();
 }

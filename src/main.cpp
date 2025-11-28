@@ -78,10 +78,22 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     as->tm->load(as->renderer.get(), "crate", "crate.png");
     as->tm->load(as->renderer.get(), "bomb", "bomb.png");
     as->tm->load(as->renderer.get(), "flame", "flame.png");
+    as->tm->load(as->renderer.get(), "fire_up_upgrade", "fire_up_upgrade.png");
+    as->tm->load(as->renderer.get(), "bomb_up_upgrade", "bomb_up_upgrade.png");
+    as->tm->load(as->renderer.get(), "skate_upgrade", "skate_upgrade.png");
 
     as->lm->loadLevel("level1", "level1.l");
 
     return SDL_APP_CONTINUE;
+}
+
+void reset(void *appstate) {
+    auto* as = static_cast<AppState*>(appstate);
+
+    as->lm->reset();
+    for (auto& player : as->players) {
+        player->reset();
+    }
 }
 
 SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
@@ -94,6 +106,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
         case (SDL_EVENT_KEY_DOWN): {
             switch (event->key.scancode) {
                 case (SDL_SCANCODE_J): {
+                    reset(as);
                     as->lm->setActiveLevel("level1");
                     SDL_FRect rect = as->lm->getActiveLevel().spawnZones[0];
                     as->players[0]->summon(SDL_FPoint{rect.x + 2, rect.y + 2});

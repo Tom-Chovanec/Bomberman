@@ -4,6 +4,7 @@
 #include "SDL3/SDL_rect.h"
 #include "bomb.hpp"
 #include "player.hpp"
+#include "powerup.hpp"
 #include <array>
 #include <chrono>
 #include <format>
@@ -129,9 +130,23 @@ void LevelManager::renderLevel(SDL_Renderer* renderer, TextureManager* tm) const
     for (auto& flame : flames) {
         SDL_RenderTexture(renderer, tm->get("flame"), nullptr, &flame.rect);
     }
+
+    for (auto& powerup : powerups) {
+        switch (powerup.powerup.getType()) {
+        case PowerupType::FIRE_UP:
+            SDL_RenderTexture(renderer, tm->get("fire_up_upgrade"), nullptr, &powerup.rect);
+            break;
+        case PowerupType::BOMB_UP:
+            SDL_RenderTexture(renderer, tm->get("bomb_up_upgrade"), nullptr, &powerup.rect);
+            break;
+        case PowerupType::SKATE:
+            SDL_RenderTexture(renderer, tm->get("skate_upgrade"), nullptr, &powerup.rect);
+            break;
+        }
+    }
 }
 
-bool LevelManager::placeBomb(int ownerId, const SDL_FRect& rect) {
+bool LevelManager::placeBomb(int ownerId, const SDL_FRect& rect, int range) {
     float maxOverlapArea = 0.0f;
     float targetX = -1;
     float targetY = -1;
@@ -172,7 +187,7 @@ bool LevelManager::placeBomb(int ownerId, const SDL_FRect& rect) {
     );
 
     if (targetX != -1 && targetY != -1 && !bombExists) {
-        bombs.emplace_back(std::make_unique<Bomb>(ownerId, SDL_FRect{targetX, targetY, tileW, tileH}, 5, std::chrono::milliseconds(1000)));
+        bombs.emplace_back(std::make_unique<Bomb>(ownerId, SDL_FRect{targetX, targetY, tileW, tileH}, range, std::chrono::milliseconds(1000)));
         return true;
     }
     return false;
@@ -183,8 +198,8 @@ void LevelManager::update(std::chrono::milliseconds dt, std::array<Player*, 2> p
         it->ttl -= dt;
 
         if (it->ttl.count() > 0) {
-             for (Player* p : players) {
-                if (p->isAlive() && SDL_HasRectIntersectionFloat(&it->rect, &p->getRect())) {
+            for (auto& p : players) {
+                if (SDL_HasRectIntersectionFloat(&it->rect, &p->getRect())) {
                     p->setHealth(p->getHealth() - 1);
                 }
             }
@@ -192,6 +207,22 @@ void LevelManager::update(std::chrono::milliseconds dt, std::array<Player*, 2> p
 
         if (it->ttl.count() <= 0) {
             it = flames.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
+    for (auto it = powerups.begin(); it != powerups.end();) {
+        bool pickedUp = false;
+        for (auto& p : players) {
+            if (SDL_HasRectIntersectionFloat(&it->rect, &p->getRect())) {
+                p->addPowerup(it->powerup);
+                pickedUp = true;
+                break;
+            }
+        }
+        if (pickedUp) {
+            it = powerups.erase(it);
         } else {
             ++it;
         }
@@ -209,8 +240,8 @@ void LevelManager::update(std::chrono::milliseconds dt, std::array<Player*, 2> p
             float tileW = 400.0f / activeLevel->width;
             float tileH = 300.0f / activeLevel->height;
 
-            int startX = static_cast<int>(bombRect.x / tileW);
-            int startY = static_cast<int>(bombRect.y / tileH);
+            int startX = static_cast<int>((bombRect.x + tileW / 2) / tileW);
+            int startY = static_cast<int>((bombRect.y + tileH / 2) / tileH);
 
             flames.push_back({bombRect, std::chrono::milliseconds(200)});
 
@@ -239,6 +270,9 @@ void LevelManager::update(std::chrono::milliseconds dt, std::array<Player*, 2> p
                     } else if (tile == 'C') {
                         tile = '0';
                         flames.push_back({flameRect, std::chrono::milliseconds(200)});
+                        if (distrib(rd) < 30) {
+                            powerups.push_back({getPowerupType(), flameRect});
+                        }
                         break;
                     } else {
                         flames.push_back({flameRect, std::chrono::milliseconds(200)});
@@ -252,13 +286,19 @@ void LevelManager::update(std::chrono::milliseconds dt, std::array<Player*, 2> p
     }
 }
 
+PowerupType LevelManager::getPowerupType() {
+    // distrib is 0 - 100
+    int tmp = distrib(rd);
+    if (tmp <= 20) {
+        return PowerupType::BOMB_UP;
+    } else if (tmp <= 60) {
+        return PowerupType::FIRE_UP;
+    } else {
+        return PowerupType::SKATE;
+    }
+}
 bool LevelManager::checkCollision(SDL_FRect& rect) {
     if (activeLevel == nullptr) return false;
-
-    if (activeLevel->width * activeLevel->height != activeLevel->layout.length()) {
-        SDL_LogWarn(0, "Unable to render activeLevel-> improper size");
-        return false;
-    }
 
     int xIdx = 0;
     int yIdx = 0;
@@ -289,4 +329,10 @@ int LevelManager::bombsExploded(int ownerId) {
     int tmp =explodedBombCount[ownerId];
     explodedBombCount[ownerId] = 0;
     return tmp;
+}
+
+void LevelManager::reset() {
+    bombs.clear();
+    flames.clear();
+    powerups.clear();
 }
