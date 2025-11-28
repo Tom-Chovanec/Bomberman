@@ -152,3 +152,7 @@ void Player::addPowerup(Powerup& powerup) {
 void Player::reset() {
     powerups.clear();
 }
+
+int Player::getId() {
+    return id;
+}

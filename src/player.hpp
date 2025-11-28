@@ -55,4 +55,5 @@ public:
     void addPowerup(Powerup& powerup);
 
     void reset();
+    int getId();
 };
